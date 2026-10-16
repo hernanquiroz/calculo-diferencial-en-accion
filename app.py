@@ -32,9 +32,76 @@ x = sp.Symbol("x")
 # ===================== UTILIDADES =====================
 @st.cache_data(show_spinner=False)
 def parse_fn(src: str):
-    """Convierte el texto del usuario en una expresión SymPy."""
+    """Convierte el texto del usuario en una expresión SymPy.
+    Acepta ^ como potencia y multiplicación implícita (2x → 2*x, 3(x+1) → 3*(x+1))."""
     src = src.replace("−", "-").replace("π", "pi").replace("^", "**")
+    src = _insert_mult(src)
     return sympify(src, locals={"e": sp.E})
+
+
+def _insert_mult(src: str) -> str:
+    """Inserta los * de multiplicación implícita, carácter a carácter.
+
+    Se inserta '*' cuando el carácter previo es el final de un valor
+    (dígito, letra o ')') y el actual inicia un valor (dígito, letra o '('),
+    excepto detrás de un operador o coma/paréntesis de función.
+    """
+    FUNCS = ("sin", "cos", "tan", "asin", "acos", "atan", "exp", "ln", "log",
+             "sqrt", "sinh", "cosh", "tanh", "Abs")
+    out = []
+    i, n = 0, len(src)
+    prev = ""  # último carácter significativo
+    prev_tok = ""  # último identificador completo
+    while i < n:
+        c = src[i]
+        if c.isspace():
+            out.append(c); i += 1; continue
+        # identificador completo
+        if c.isalpha():
+            j = i
+            while j < n and (src[j].isalnum() or src[j] == "_"):
+                j += 1
+            word = src[i:j]
+            if prev and (prev.isdigit() or prev.isalpha() or prev == ")"):
+                out.append("*")
+            out.append(word)
+            prev = word[-1]; prev_tok = word
+            i = j
+            continue
+        # número
+        if c.isdigit() or (c == "." and i + 1 < n and src[i + 1].isdigit()):
+            j = i
+            while j < n and (src[j].isdigit() or src[j] == "."):
+                j += 1
+            num = src[i:j]
+            if prev and (prev.isdigit() is False and (prev.isalpha() or prev == ")")):
+                out.append("*")
+            out.append(num)
+            prev = num[-1]; prev_tok = num
+            i = j
+            continue
+        # otros caracteres
+        if c == "(":
+            if prev and (prev.isdigit() or prev.isalpha() or prev == ")") and prev_tok not in FUNCS:
+                out.append("*")
+            out.append(c); prev = c; prev_tok = ""
+            i += 1
+            continue
+        if c in "+-*/^,":
+            out.append(c); prev = ""; prev_tok = ""  # operador: no hay valor antes
+            i += 1
+            continue
+        if c == ")":
+            out.append(c); prev = c; prev_tok = ""
+            i += 1
+            continue
+        # carácter no reconocido (p.ej. **) se copia
+        if c == "*" and i + 1 < n and src[i + 1] == "*":
+            out.append("**"); prev = ""; prev_tok = ""; i += 2
+            continue
+        out.append(c); prev = c; prev_tok = ""
+        i += 1
+    return "".join(out)
 
 
 def derivative_steps(f, depth=0, steps=None):
@@ -226,8 +293,6 @@ def type_terminal(lines, speed_ms):
 
 def terminal_html(body):
     with TERM_BOX:
-        # ⚠️ CORRECCIÓN: en Streamlit 1.66+ el parámetro `scrolling` fue removido.
-        # Solo se admite `body` (HTML), `width` y `height`.
         st.iframe(
             _TERM_CSS
             + f"""
@@ -244,6 +309,7 @@ def terminal_html(body):
             </script>
             """,
             height=TERM_HEIGHT,
+            scrolling=False,
         )
 
 
@@ -504,3 +570,4 @@ else:
         '<div class="tn">// Terminal — configura el problema en el panel izquierdo '
         'y pulsa «▶ Resolver y mostrar pasos».</div>'
     )
+
