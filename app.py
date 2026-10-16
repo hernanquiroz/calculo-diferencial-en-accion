@@ -20,7 +20,6 @@ import traceback
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import streamlit.components.v1 as components
 import streamlit as st
 import sympy as sp
 from sympy import sympify, latex
@@ -182,7 +181,7 @@ def fmt_val(v):
 
 
 # ===================== TERMINAL CON EFECTO DE TECLEO =====================
-# La terminal se renderiza como componente HTML AUTOCONTENIDO (components.html),
+# La terminal se renderiza como HTML AUTOCONTENIDO dentro de un iframe (st.iframe),
 # que NO pasa por el sanitizador de st.markdown: el CSS siempre se aplica.
 
 TERM_HEIGHT = 460  # altura fija de la ventana de terminal (px)
@@ -227,7 +226,7 @@ def type_terminal(lines, speed_ms):
 
 def terminal_html(body):
     with TERM_BOX:
-        components.html(
+        st.iframe(
             _TERM_CSS
             + f"""
             <div class="terminal" style="height:{TERM_HEIGHT}px;">
