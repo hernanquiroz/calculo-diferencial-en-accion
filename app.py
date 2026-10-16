@@ -226,6 +226,8 @@ def type_terminal(lines, speed_ms):
 
 def terminal_html(body):
     with TERM_BOX:
+        # ⚠️ CORRECCIÓN: en Streamlit 1.66+ el parámetro `scrolling` fue removido.
+        # Solo se admite `body` (HTML), `width` y `height`.
         st.iframe(
             _TERM_CSS
             + f"""
@@ -242,7 +244,6 @@ def terminal_html(body):
             </script>
             """,
             height=TERM_HEIGHT,
-            scrolling=False,
         )
 
 
@@ -503,6 +504,3 @@ else:
         '<div class="tn">// Terminal — configura el problema en el panel izquierdo '
         'y pulsa «▶ Resolver y mostrar pasos».</div>'
     )
-
-
-
