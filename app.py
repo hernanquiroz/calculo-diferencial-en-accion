@@ -320,7 +320,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-)
 CAPITULOS = {
     "derivada": "1. Derivada por reglas (potencia, suma, producto, cociente, cadena)",
     "cadena": "2. Regla de la cadena en profundidad",
