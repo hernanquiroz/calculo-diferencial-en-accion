@@ -1,3 +1,4 @@
+
 # app.py — Solucionador de Cálculo Diferencial paso a paso (Streamlit + SymPy + Matplotlib)
 # ---------------------------------------------------------------------------
 # Despliegue en Streamlit Cloud (gratis, conectado a GitHub):
@@ -19,6 +20,7 @@ import traceback
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import streamlit.components.v1 as components
 import streamlit as st
 import sympy as sp
 from sympy import sympify, latex
@@ -180,7 +182,32 @@ def fmt_val(v):
 
 
 # ===================== TERMINAL CON EFECTO DE TECLEO =====================
-TERM_BOX = None  # se crea en la sección de interfaz (columna de contenido)
+# La terminal se renderiza como componente HTML AUTOCONTENIDO (components.html),
+# que NO pasa por el sanitizador de st.markdown: el CSS siempre se aplica.
+
+TERM_HEIGHT = 460  # altura fija de la ventana de terminal (px)
+
+_TERM_CSS = """
+<style>
+  body { margin:0; background:transparent; font-family:'JetBrains Mono','Cascadia Code',Consolas,monospace; }
+  .terminal { background:#05070d; border:1px solid #1e2a3d; border-radius:14px;
+              box-shadow:0 12px 40px rgba(0,0,0,.55); overflow:hidden; }
+  .term-head { display:flex; align-items:center; gap:8px; padding:10px 14px;
+               background:#0d1322; border-bottom:1px solid #1e2a3d; }
+  .dot { width:12px; height:12px; border-radius:50%; }
+  .d1{background:#ff5f57}.d2{background:#febc2e}.d3{background:#28c840}
+  .term-title { margin-left:10px; color:#8b949e; font-size:.78rem; }
+  .term-body { padding:16px 18px; font-size:.86rem; line-height:1.85;
+               height:calc(100vh - 46px); max-height:%(h)dpx; overflow-y:auto; white-space:pre-wrap; }
+  .cursor { display:inline-block; width:9px; height:1.05em; background:#3fb950;
+            vertical-align:text-bottom; animation:blink 1s steps(1) infinite; }
+  @keyframes blink { 50%% { opacity:0; } }
+  .tl { color:#e3b341; font-weight:600; }
+  .tr { color:#3fb950; }
+  .tn { color:#7d8590; font-style:italic; }
+  .te { color:#f85149; }
+</style>
+""" % {"h": TERM_HEIGHT - 46}
 
 
 def type_terminal(lines, speed_ms):
@@ -195,18 +222,25 @@ def type_terminal(lines, speed_ms):
 
 
 def terminal_html(body):
-    TERM_BOX.markdown(
-        f"""
-        <div class="terminal">
-          <div class="term-head">
-            <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
-            <span class="title">calcdiff — bash</span>
-          </div>
-          <div class="term-body">{body}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    with TERM_BOX:
+        components.html(
+            _TERM_CSS
+            + f"""
+            <div class="terminal">
+              <div class="term-head">
+                <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
+                <span class="term-title">calcdiff — bash</span>
+              </div>
+              <div class="term-body">{body}</div>
+            </div>
+            <script>
+              const b = document.querySelector('.term-body');
+              if (b) b.scrollTop = b.scrollHeight;
+            </script>
+            """,
+            height=TERM_HEIGHT,
+            scrolling=False,
+        )
 
 
 def render_line(kind, text):
@@ -262,120 +296,31 @@ def plot_fn(f, df=None, tang=None, x0=-5, x1=5):
 # ===================== INTERFAZ =====================
 st.set_page_config(page_title="CalcDiff — Solucionador de Cálculo Diferencial", page_icon="🧮", layout="wide")
 
-# ---------- TEMA MODERNO (CSS) ----------
+# ---------- DISEÑO MODERNO (sin <style>: estilos inline, a prueba del sanitizador) ----------
+# El fondo oscuro global y los acentos de color vienen de .streamlit/config.toml (tema dark).
+
+# ---- Hero con gradiente (100% inline) ----
 st.markdown(
     """
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <style>
-      /* ---- Fondo y tipografía general ---- */
-      .stApp { background: #0b0f1a; }
-      .stApp, .stApp p, .stApp span, .stApp label { font-family: 'Inter', sans-serif; }
-      #MainMenu, footer, header { visibility: hidden; }   /* interfaz limpia */
-
-      /* ---- Hero / título con gradiente ---- */
-      .hero {
-        background: linear-gradient(135deg, rgba(88,166,255,.14), rgba(63,185,80,.10) 55%, rgba(227,179,65,.10));
-        border: 1px solid #1e2a3d; border-radius: 18px; padding: 28px 32px; margin-bottom: 22px;
-        box-shadow: 0 8px 32px rgba(0,0,0,.45);
-      }
-      .hero h1 {
-        margin: 0; font-size: 2.1rem; font-weight: 800; letter-spacing: -0.5px;
-        background: linear-gradient(90deg, #58a6ff, #a371f7 55%, #3fb950);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      }
-      .hero p { margin: 6px 0 0; color: #8b949e; font-size: .95rem; }
-      .hero .pill {
-        display: inline-block; margin-top: 14px; padding: 4px 14px; border-radius: 999px;
-        background: rgba(88,166,255,.12); border: 1px solid rgba(88,166,255,.35);
-        color: #58a6ff; font-size: .78rem; font-weight: 600;
-      }
-
-      /* ---- Terminal estilo macOS ---- */
-      .terminal {
-        background: #05070d; border: 1px solid #1e2a3d; border-radius: 14px;
-        box-shadow: 0 12px 40px rgba(0,0,0,.55); overflow: hidden;
-      }
-      .term-head {
-        display: flex; align-items: center; gap: 8px; padding: 10px 14px;
-        background: #0d1322; border-bottom: 1px solid #1e2a3d;
-      }
-      .term-head .dot { width: 12px; height: 12px; border-radius: 50%; }
-      .term-head .d1 { background: #ff5f57; } .term-head .d2 { background: #febc2e; } .term-head .d3 { background: #28c840; }
-      .term-head span.title { margin-left: 10px; color: #8b949e; font-size: .78rem; font-family: 'JetBrains Mono', monospace; }
-      .term-body {
-        padding: 16px 18px; font-family: 'JetBrains Mono', monospace; font-size: .88rem;
-        line-height: 1.8; min-height: 340px; max-height: 72vh; overflow-y: auto;
-      }
-      .term-body .cursor {
-        display: inline-block; width: 9px; height: 1.05em; background: #3fb950;
-        vertical-align: text-bottom; animation: blink 1s steps(1) infinite;
-      }
-      @keyframes blink { 50% { opacity: 0; } }
-      .tl { color: #e3b341; font-weight: 600; }
-      .tr { color: #3fb950; }
-      .tn { color: #7d8590; font-style: italic; }
-      .te { color: #f85149; }
-
-      /* ---- Tarjetas de resultado ---- */
-      .result-cards { display: flex; flex-wrap: wrap; gap: 12px; margin: 10px 0 18px; }
-      .rcard {
-        flex: 1 1 240px; background: linear-gradient(160deg, #101728, #0b0f1a);
-        border: 1px solid #1e2a3d; border-left: 3px solid #58a6ff;
-        border-radius: 12px; padding: 14px 18px; box-shadow: 0 6px 22px rgba(0,0,0,.4);
-      }
-      .rcard.green { border-left-color: #3fb950; }
-      .rcard.gold  { border-left-color: #e3b341; }
-      .rcard .k { color: #8b949e; font-size: .72rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
-      .rcard .v { color: #e6edf3; font-size: 1.15rem; font-weight: 700; margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
-
-      /* ---- Sidebar ---- */
-      section[data-testid="stSidebar"] {
-        background: #0d1322; border-right: 1px solid #1e2a3d;
-      }
-      section[data-testid="stSidebar"] .block-container { padding-top: 1.2rem; }
-      .sb-brand { text-align: center; padding: 6px 0 14px; border-bottom: 1px solid #1e2a3d; margin-bottom: 12px; }
-      .sb-brand .logo { font-size: 1.9rem; }
-      .sb-brand .name {
-        font-weight: 800; font-size: 1.05rem; letter-spacing: .5px;
-        background: linear-gradient(90deg, #58a6ff, #3fb950);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      }
-      .sb-brand .tag { color: #8b949e; font-size: .72rem; }
-
-      /* ---- Inputs y botones ---- */
-      .stTextInput > div > div > input, .stSelectbox > div > div > div {
-        background: #0b0f1a !important; border: 1px solid #263049 !important;
-        border-radius: 10px !important; color: #e6edf3 !important;
-        font-family: 'JetBrains Mono', monospace !important;
-      }
-      .stTextInput > div > div > input:focus { border-color: #58a6ff !important; box-shadow: 0 0 0 3px rgba(88,166,255,.18) !important; }
-      div[data-testid="stButton"] > button[kind="primary"] {
-        background: linear-gradient(135deg, #238636, #2ea043) !important;
-        border: none !important; border-radius: 12px !important; font-weight: 700 !important;
-        box-shadow: 0 6px 20px rgba(46,160,67,.35) !important; transition: all .2s ease;
-      }
-      div[data-testid="stButton"] > button[kind="primary"]:hover {
-        transform: translateY(-1px); box-shadow: 0 10px 26px rgba(46,160,67,.5) !important;
-      }
-      /* Slider */
-      .stSlider > div { padding-top: 4px; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-# ---- Hero ----
-st.markdown(
-    """
-    <div class="hero">
-        <h1>🧮 CalcDiff</h1>
-        <p>Solucionador de <b>cálculo diferencial</b> paso a paso — teclea, deriva, grafica.</p>
-        <span class="pill">⚡ SymPy · motor simbólico exacto &nbsp;·&nbsp; 📈 graficador incluido</span>
+    <div style="
+        background: linear-gradient(135deg, rgba(88,166,255,.16), rgba(163,113,247,.12) 55%, rgba(63,185,80,.12));
+        border: 1px solid #2a3a55; border-radius: 18px; padding: 26px 32px; margin-bottom: 10px;
+        box-shadow: 0 8px 32px rgba(0,0,0,.45);">
+        <h1 style="margin:0; font-size:2.1rem; font-weight:800; letter-spacing:-0.5px; color:#58a6ff;">
+            🧮 CalcDiff
+            <span style="font-size:1.05rem; font-weight:600; color:#a371f7;">· solucionador paso a paso</span>
+        </h1>
+        <p style="margin:8px 0 12px; color:#8b949e; font-size:.95rem;">
+            Escribe una función, elige el capítulo y observa cómo la terminal <b>teclea la solución</b> — con gráfica incluida.
+        </p>
+        <span style="display:inline-block; margin-right:6px; padding:4px 14px; border-radius:999px; background:rgba(88,166,255,.12); border:1px solid rgba(88,166,255,.4); color:#58a6ff; font-size:.78rem; font-weight:600;">⚡ SymPy · motor simbólico exacto</span>
+        <span style="display:inline-block; padding:4px 14px; border-radius:999px; background:rgba(63,185,80,.12); border:1px solid rgba(63,185,80,.4); color:#3fb950; font-size:.78rem; font-weight:600;">📈 Graficador incluido</span>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
+)
 CAPITULOS = {
     "derivada": "1. Derivada por reglas (potencia, suma, producto, cociente, cadena)",
     "cadena": "2. Regla de la cadena en profundidad",
@@ -396,10 +341,10 @@ EJEMPLOS = {
 with st.sidebar:
     st.markdown(
         """
-        <div class="sb-brand">
-            <div class="logo">🧮</div>
-            <div class="name">CalcDiff</div>
-            <div class="tag">cálculo diferencial · paso a paso</div>
+        <div style="text-align:center; padding:4px 0 14px; border-bottom:1px solid #2a3a55; margin-bottom:12px;">
+            <div style="font-size:1.9rem;">🧮</div>
+            <div style="font-weight:800; font-size:1.05rem; letter-spacing:.5px; color:#58a6ff;">CalcDiff</div>
+            <div style="color:#8b949e; font-size:.72rem;">cálculo diferencial · paso a paso</div>
         </div>
         """,
         unsafe_allow_html=True,
