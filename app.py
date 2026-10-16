@@ -1,4 +1,3 @@
-
 # app.py — Solucionador de Cálculo Diferencial paso a paso (Streamlit + SymPy + Matplotlib)
 # ---------------------------------------------------------------------------
 # Despliegue en Streamlit Cloud (gratis, conectado a GitHub):
@@ -187,7 +186,10 @@ def fmt_val(v):
 
 TERM_HEIGHT = 460  # altura fija de la ventana de terminal (px)
 
-_TERM_CSS = """
+# CSS de la terminal. OJO: se concatena la altura; NO usar formateo % aquí
+# porque el CSS contiene literales "50%" que romperían el formateo.
+_TERM_CSS = (
+    """
 <style>
   body { margin:0; background:transparent; font-family:'JetBrains Mono','Cascadia Code',Consolas,monospace; }
   .terminal { background:#05070d; border:1px solid #1e2a3d; border-radius:14px;
@@ -198,16 +200,17 @@ _TERM_CSS = """
   .d1{background:#ff5f57}.d2{background:#febc2e}.d3{background:#28c840}
   .term-title { margin-left:10px; color:#8b949e; font-size:.78rem; }
   .term-body { padding:16px 18px; font-size:.86rem; line-height:1.85;
-               height:calc(100vh - 46px); max-height:%(h)dpx; overflow-y:auto; white-space:pre-wrap; }
+               overflow-y:auto; white-space:pre-wrap; }
   .cursor { display:inline-block; width:9px; height:1.05em; background:#3fb950;
             vertical-align:text-bottom; animation:blink 1s steps(1) infinite; }
-  @keyframes blink { 50%% { opacity:0; } }
+  @keyframes blink { 50% { opacity:0; } }
   .tl { color:#e3b341; font-weight:600; }
   .tr { color:#3fb950; }
   .tn { color:#7d8590; font-style:italic; }
   .te { color:#f85149; }
 </style>
-""" % {"h": TERM_HEIGHT - 46}
+"""
+)
 
 
 def type_terminal(lines, speed_ms):
@@ -226,12 +229,12 @@ def terminal_html(body):
         components.html(
             _TERM_CSS
             + f"""
-            <div class="terminal">
+            <div class="terminal" style="height:{TERM_HEIGHT}px;">
               <div class="term-head">
                 <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
                 <span class="term-title">calcdiff — bash</span>
               </div>
-              <div class="term-body">{body}</div>
+              <div class="term-body" style="height:{TERM_HEIGHT - 46}px;">{body}</div>
             </div>
             <script>
               const b = document.querySelector('.term-body');
@@ -291,6 +294,28 @@ def plot_fn(f, df=None, tang=None, x0=-5, x1=5):
     ax.set_xlabel("x", color="#8b949e")
     ax.set_ylabel("y", color="#8b949e")
     return fig
+
+
+# ---- helpers numéricos ----
+def safe_vals(fn, xs):
+    out = []
+    for xv in xs:
+        try:
+            y = fn(float(xv))
+            y = float(np.asarray(y, dtype=float).ravel()[0]) if np.ndim(y) else float(y)
+            out.append(y if np.isfinite(y) else np.nan)
+        except Exception:
+            out.append(np.nan)
+    return np.array(out, dtype=float)
+
+
+def safe_at(fn, xv):
+    try:
+        y = fn(float(xv))
+        y = float(np.asarray(y, dtype=float).ravel()[0]) if np.ndim(y) else float(y)
+        return y if np.isfinite(y) else np.nan
+    except Exception:
+        return np.nan
 
 
 # ===================== INTERFAZ =====================
@@ -477,26 +502,5 @@ else:
     terminal_html(
         '<div class="tn">// Terminal — configura el problema en el panel izquierdo '
         'y pulsa «▶ Resolver y mostrar pasos».</div>'
-    )
 
 
-# ---- helpers numéricos usados arriba ----
-def safe_vals(fn, xs):
-    out = []
-    for xv in xs:
-        try:
-            y = fn(float(xv))
-            y = float(np.asarray(y, dtype=float).ravel()[0]) if np.ndim(y) else float(y)
-            out.append(y if np.isfinite(y) else np.nan)
-        except Exception:
-            out.append(np.nan)
-    return np.array(out, dtype=float)
-
-
-def safe_at(fn, xv):
-    try:
-        y = fn(float(xv))
-        y = float(np.asarray(y, dtype=float).ravel()[0]) if np.ndim(y) else float(y)
-        return y if np.isfinite(y) else np.nan
-    except Exception:
-        return np.nan
