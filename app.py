@@ -1,3 +1,4 @@
+
 # app.py — Solucionador de Cálculo Diferencial paso a paso (Streamlit + SymPy + Matplotlib)
 # ---------------------------------------------------------------------------
 # Despliegue en Streamlit Cloud (gratis, conectado a GitHub):
@@ -502,5 +503,7 @@ else:
     terminal_html(
         '<div class="tn">// Terminal — configura el problema en el panel izquierdo '
         'y pulsa «▶ Resolver y mostrar pasos».</div>'
+    )
+
 
 
